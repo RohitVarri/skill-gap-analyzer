@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Skill Gap Analyzer Blueprint UI</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root{
+            --bg:#003366;
+            --line:rgba(255,255,255,0.82);
+            --line-soft:rgba(255,255,255,0.24);
+            --cyan:#00ffff;
+            --red:#ff3333;
+            --panel:rgba(255,255,255,0.03);
+            --panel-2:rgba(255,255,255,0.06);
+            --text:#ffffff;
+            --muted:rgba(255,255,255,0.75);
+            --grid-small:20px;
+            --grid-large:100px;
+            --shadow:0 0 0 1px rgba(255,255,255,0.08), 0 20px 50px rgba(0,0,0,0.18);
+        }
+
+        *{
+            box-sizing:border-box;
+        }
+
+        html,body{
+            margin:0;
+            padding:0;
+            min-height:100%;
+            background:var(--bg);
+            color:var(--text);
+            font-family:"Roboto Mono", monospace;
+            overflow-x:hidden;
+        }
+
+        body{
+            position:relative;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size:
+                var(--grid-large) var(--grid-large),
+                var(--grid-large) var(--grid-large),
+                var(--grid-small) var(--grid-small),
+                var(--grid-small) var(--grid-small);
+            background-position:0 0;
+        }
+
+        body::before{
+            content:"";
+            position:fixed;
+            inset:0;
+            pointer-events:none;
+            opacity:0.12;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 25%),
+                radial-gradient(circle at 80% 10%, rgba(255,255,255,0.1), transparent 20%),
+                radial-gradient(circle at 50% 80%, rgba(255,255,255,0.08), transparent 30%);
+            mix-blend-mode:screen;
+        }
+
+        .blueprint-note{
+            font-family:"Architects Daughter", cursive;
+            color:var(--red);
+            font-size:14px;
+            letter-spacing:0.3px;
+        }
+
+        .app-shell{
+            width:min(1220px, calc(100% - 48px));
+            margin:24px auto 60px;
+            position:relative;
+        }
+
+        .top-ruler{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            border:1px solid var(--line-soft);
+            padding:10px 16px;
+            background:rgba(255,255,255,0.02);
+            margin-bottom:20px;
+        }
+
+        .tiny-label{
+            font-size:11px;
+            color:var(--cyan);
+            text-transform:uppercase;
+            letter-spacing:1.5px;
+        }
+
+        .hero{
+            position:relative;
+            border:1px solid var(--line);
+            background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+            box-shadow:var(--shadow);
+            padding:28px 28px 24px;
+            margin-bottom:24px;
+        }
+
+        .hero::before,
+        .hero::after,
+        .panel::before,
+        .panel::after,
+        .result-card::before,
+        .result-card::after{
+            content:"";
+            position:absolute;
+            width:16px;
+            height:16px;
+            border-color:var(--line);
+            pointer-events:none;
+        }
+
+        .hero::before,
+        .panel::before,
+        .result-card::before{
+            top:-1px;
+            left:-1px;
+            border-top:2px solid var(--line);
+            border-left:2px solid var(--line);
+        }
+
+        .hero::after,
+        .panel::after,
+        .result-card::after{
+            right:-1px;
+            bottom:-1px;
+            border-right:2px solid var(--line);
+            border-bottom:2px solid var(--line);
+        }
+
+        .hero-header{
+            display:flex;
+            justify-content:space-between;
+            gap:20px;
+            align-items:flex-start;
+            flex-wrap:wrap;
+        }
+
+        .title-block h1{
+            margin:0 0 10px;
+            font-size:38px;
+            line-height:1.05;
+            letter-spacing:1px;
+            text-transform:uppercase;
+        }
+
+        .title-block p{
+            margin:0;
+            color:var(--muted);
+            max-width:780px;
+            line-height:1.7;
+            font-size:14px;
+        }
+
+        .annotation-box{
+            min-width:220px;
+            border:1px dashed var(--cyan);
+            padding:12px 14px;
+            text-align:left;
+            background:rgba(0,255,255,0.04);
+        }
+
+        .annotation-box div{
+            font-size:12px;
+            color:var(--cyan);
+            line-height:1.8;
+        }
+
+        .hero-measure{
+            display:flex;
+            gap:18px;
+            flex-wrap:wrap;
+            margin-top:18px;
+            color:var(--cyan);
+            font-size:11px;
+        }
+
+        .upload-panel{
+            margin-top:22px;
+            border:1px solid var(--line-soft);
+            padding:20px;
+            background:rgba(255,255,255,0.02);
+            position:relative;
+        }
+
+        .dimension-line{
+            margin:10px 0 18px;
+            color:var(--cyan);
+            font-size:11px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }
+
+        #uploadForm{
+            display:grid;
+            grid-template-columns:1fr auto auto;
+            gap:14px;
+            align-items:center;
+        }
+
+        .file-wrap{
+            position:relative;
+            border:1px dashed var(--line);
+            background:rgba(255,255,255,0.03);
+            min-height:56px;
+            display:flex;
+            align-items:center;
+            padding:0 16px;
+        }
+
+        .file-wrap input[type="file"]{
+            width:100%;
+            color:var(--muted);
+            background:transparent;
+            border:none;
+            outline:none;
+            font-family:"Roboto Mono", monospace;
+        }
+
+        button{
+            min-height:56px;
+            padding:0 18px;
+            border:1px solid var(--line);
+            background:transparent;
+            color:var(--text);
+            font-family:"Roboto Mono", monospace;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            cursor:pointer;
+            transition:0.2s ease;
+            position:relative;
+        }
+
+        button:hover{
+            background:rgba(255,255,255,0.08);
+            transform:translateY(-1px);
+        }
+
+        .primary-btn{
+            border-color:var(--red);
+            color:var(--red);
+        }
+
+        .download-btn{
+            border-color:var(--cyan);
+            color:var(--cyan);
+        }
+
+        .grid-layout{
+            display:grid;
+            grid-template-columns:1.1fr 0.9fr;
+            gap:24px;
+            margin-bottom:24px;
+        }
+
+        .panel{
+            position:relative;
+            border:1px solid var(--line);
+            background:var(--panel);
+            box-shadow:var(--shadow);
+            padding:20px;
+        }
+
+        .panel h2{
+            margin:0 0 16px;
+            font-size:18px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+        }
+
+        .panel-head{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+            margin-bottom:12px;
+        }
+
+        .panel-sub{
+            color:var(--muted);
+            font-size:13px;
+            line-height:1.7;
+        }
+
+        .best-role-box,
+        .insight-box{
+            border:1px dashed var(--line-soft);
+            background:rgba(255,255,255,0.03);
+            padding:16px;
+            margin-top:12px;
+            text-align:left;
+        }
+
+        #bestRole{
+            margin:0;
+            font-size:24px;
+            color:var(--cyan);
+            line-height:1.4;
+        }
+
+        #careerInsight{
+            color:var(--muted);
+            line-height:1.8;
+            font-size:14px;
+        }
+
+        #marketSkills{
+            text-align:left;
+            line-height:1.9;
+            color:var(--muted);
+            font-size:14px;
+        }
+
+        .charts-grid{
+            display:grid;
+            grid-template-columns:1fr;
+            gap:24px;
+            margin-bottom:24px;
+        }
+
+        .chart-panel{
+            position:relative;
+            border:1px solid var(--line);
+            background:var(--panel);
+            box-shadow:var(--shadow);
+            padding:20px;
+        }
+
+        .chart-panel h2{
+            margin:0 0 12px;
+            font-size:18px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+        }
+
+        canvas{
+            width:100% !important;
+            max-width:100%;
+            min-height:320px;
+            background:rgba(255,255,255,0.02);
+            border:1px dashed var(--line-soft);
+            padding:10px;
+        }
+
+        #results{
+            display:grid;
+            gap:22px;
+        }
+
+        .result-card{
+            position:relative;
+            border:1px solid var(--line);
+            background:var(--panel-2);
+            box-shadow:var(--shadow);
+            padding:22px;
+            text-align:left;
+        }
+
+        .result-top{
+            display:flex;
+            justify-content:space-between;
+            gap:20px;
+            flex-wrap:wrap;
+            margin-bottom:14px;
+        }
+
+        .result-card h3{
+            margin:0;
+            font-size:22px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+        }
+
+        .score-box{
+            border:1px dashed var(--cyan);
+            padding:10px 14px;
+            min-width:180px;
+            text-align:left;
+            background:rgba(0,255,255,0.03);
+        }
+
+        .score-box div{
+            margin:6px 0;
+            font-size:13px;
+        }
+
+        .result-grid{
+            display:grid;
+            grid-template-columns:1fr 1fr 1fr;
+            gap:18px;
+            margin-top:18px;
+        }
+
+        .mini-block{
+            border:1px dashed var(--line-soft);
+            padding:14px;
+            background:rgba(255,255,255,0.02);
+        }
+
+        .mini-block h4{
+            margin:0 0 12px;
+            color:var(--cyan);
+            text-transform:uppercase;
+            font-size:13px;
+            letter-spacing:1px;
+        }
+
+        .mini-block p,
+        .mini-block div{
+            margin:0;
+            color:var(--muted);
+            font-size:13px;
+            line-height:1.8;
+        }
+
+        .redline{
+            margin-top:10px;
+            padding:10px 12px;
+            border-left:3px solid var(--red);
+            background:rgba(255,51,51,0.06);
+        }
+
+        .footer-note{
+            margin-top:28px;
+            text-align:right;
+        }
+
+        .crosshair{
+            position:fixed;
+            width:16px;
+            height:16px;
+            pointer-events:none;
+            transform:translate(-50%, -50%);
+            z-index:9999;
+        }
+
+        .crosshair::before,
+        .crosshair::after{
+            content:"";
+            position:absolute;
+            background:var(--cyan);
+        }
+
+        .crosshair::before{
+            width:16px;
+            height:1px;
+            top:50%;
+            left:0;
+            transform:translateY(-50%);
+        }
+
+        .crosshair::after{
+            width:1px;
+            height:16px;
+            left:50%;
+            top:0;
+            transform:translateX(-50%);
+        }
+
+        .coords{
+            position:fixed;
+            right:14px;
+            bottom:14px;
+            background:rgba(0,0,0,0.25);
+            border:1px solid var(--cyan);
+            color:var(--cyan);
+            padding:8px 10px;
+            font-size:11px;
+            z-index:9998;
+        }
+
+        @media (max-width: 960px){
+            .grid-layout,
+            .result-grid,
+            #uploadForm{
+                grid-template-columns:1fr;
+            }
+
+            .container{
+                width:min(100% - 24px, 100%);
+                padding:22px 0 36px;
+            }
+
+            .hero{
+                padding:20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="crosshair"></div>
+    <div class="coords" id="coords">x: 0 | y: 0</div>
+
+    <div class="app-shell">
+        <div class="top-ruler">
+            <div class="tiny-label">project: skill-gap-analyzer // view: blueprint-ui</div>
+            <div class="tiny-label">grid: 20px / 100px // revision: v2.4</div>
+        </div>
+
+        <section class="hero">
+            <div class="hero-header">
+                <div class="title-block">
+                    <div class="tiny-label">sheet a-01 // master planning elevation</div>
+                    <h1>AI Skill Gap Analyzer</h1>
+                    <p>
+                        Structural analysis interface for evaluating resume-to-role alignment, highlighting
+                        missing competencies, technical learning sequences, ATS compatibility, and market demand trends.
+                    </p>
+                </div>
+
+                <div class="annotation-box">
+                    <div>NOTE 01: ALIGN TO MASTER GRID</div>
+                    <div>NOTE 02: DISPLAY LIVE MATCH LOGIC</div>
+                    <div>NOTE 03: FLAG CAPABILITY GAPS</div>
+                </div>
+            </div>
+
+            <div class="hero-measure">
+                <div>[x:020 y:080] input zone</div>
+                <div>[x:420 y:080] decision engine</div>
+                <div>[x:920 y:080] output system</div>
+            </div>
+
+            <div class="upload-panel">
+                <div class="dimension-line">&lt;----------- resume-upload-module : 100% width -----------&gt;</div>
+
+                <form id="uploadForm">
+                    <div class="file-wrap">
+                        <input type="file" id="fileInput" required>
+                    </div>
+                    <button type="submit" class="primary-btn">Analyze Resume</button>
+                    <button type="button" id="downloadReport" class="download-btn">Download Report</button>
+                </form>
+
+                <div class="redline blueprint-note">
+                    review mark: upload a resume file to generate role fit, ats score, skill gaps, and build-path analysis.
+                </div>
+            </div>
+        </section>
+
+        <div class="grid-layout">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Best Career Match</h2>
+                    <div class="tiny-label">ref // section-b1</div>
+                </div>
+                <div class="best-role-box">
+                    <div id="bestRole">Awaiting analysis...</div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>AI Career Insight</h2>
+                    <div class="tiny-label">ref // section-b2</div>
+                </div>
+                <div class="insight-box">
+                    <div id="careerInsight" class="panel-sub">
+                        Run the analysis to generate a blueprint-style career direction note.
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="grid-layout">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Trending Skills in Market</h2>
+                    <div class="tiny-label">ref // matrix-sd</div>
+                </div>
+                <div id="marketSkills"></div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Drafting Notes</h2>
+                    <div class="tiny-label">ref // comments</div>
+                </div>
+                <div class="panel-sub blueprint-note">
+                    circle weak zones, annotate missing skill clusters, and treat roadmap output like a staged build plan.
+                </div>
+                <div class="dimension-line" style="margin-top:16px;">&lt;--- 3 critical deficiencies max highlighted ---></div>
+            </section>
+        </div>
+
+        <div class="charts-grid">
+            <section class="chart-panel">
+                <div class="panel-head">
+                    <h2>Job Match Overview</h2>
+                    <div class="tiny-label">chart // jm-01</div>
+                </div>
+                <canvas id="resultChart"></canvas>
+            </section>
+
+            <section class="chart-panel">
+                <div class="panel-head">
+                    <h2>Market Skill Demand</h2>
+                    <div class="tiny-label">chart // ms-02</div>
+                </div>
+                <canvas id="skillChart"></canvas>
+            </section>
+
+            <section class="chart-panel">
+                <div class="panel-head">
+                    <h2>Best Role Skill Coverage</h2>
+                    <div class="tiny-label">chart // rc-03</div>
+                </div>
+                <canvas id="radarChart"></canvas>
+            </section>
+        </div>
+
+        <section>
+            <div class="panel-head" style="margin-bottom:12px;">
+                <h2 style="margin:0;">Role Detail Sheets</h2>
+                <div class="tiny-label">sheet group // rd</div>
+            </div>
+            <div id="results"></div>
+        </section>
+
+        <div class="footer-note blueprint-note">
+            redline: system remains in drafting mode — logic before polish.
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("uploadForm");
+        const resultsDiv = document.getElementById("results");
+        const bestRoleDiv = document.getElementById("bestRole");
+        const careerInsightDiv = document.getElementById("careerInsight");
+        const marketSkillsDiv = document.getElementById("marketSkills");
+
+        let resultChartInstance = null;
+        let skillChartInstance = null;
+        let radarChartInstance = null;
+        let latestReportText = "No report generated yet.";
+
+        Chart.defaults.color = "rgba(255,255,255,0.85)";
+        Chart.defaults.borderColor = "rgba(255,255,255,0.14)";
+        Chart.defaults.font.family = '"Roboto Mono", monospace';
+
+        document.addEventListener("mousemove", function(e){
+            const crosshair = document.querySelector(".crosshair");
+            const coords = document.getElementById("coords");
+            crosshair.style.left = e.clientX + "px";
+            crosshair.style.top = e.clientY + "px";
+            coords.textContent = `x: ${e.clientX} | y: ${e.clientY}`;
+        });
+
+        form.addEventListener("submit", async function(e){
+            e.preventDefault();
+
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
+
+            if(!file){
+                alert("Please upload a resume");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch("/analyze-resume", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if(data.error){
+                alert("Error: " + data.error);
+                console.error(data.trace);
+                return;
+            }
+
+            bestRoleDiv.innerHTML =
+                `[best-fit] ${data.best_role.job_role} // score:${data.best_role.match_score}%`;
+
+            careerInsightDiv.innerHTML = data.career_insight;
+
+            let marketHTML = "";
+            for(const skill in data.market_skills){
+                marketHTML += `<div><span class="tiny-label">${skill}</span> — ${data.market_skills[skill]} references</div>`;
+            }
+            marketSkillsDiv.innerHTML = marketHTML;
+
+            let labels = [];
+            let scores = [];
+            let html = "";
+
+            data.all_results.forEach(job => {
+                labels.push(job.job_role);
+                scores.push(job.match_score);
+
+                let roadmapHTML = "";
+                job.roadmap.forEach(r => {
+                    roadmapHTML += `<div>PHASE ${r.week} → ${r.skill}</div>`;
+                });
+
+                let tipsHTML = "";
+                job.resume_tips.forEach(t => {
+                    tipsHTML += `<div>${t}</div>`;
+                });
+
+                html += `
+                <div class="result-card">
+                    <div class="result-top">
+                        <div>
+                            <div class="tiny-label">role sheet</div>
+                            <h3>${job.job_role}</h3>
+                        </div>
+
+                        <div class="score-box">
+                            <div><span class="tiny-label">match</span> ${job.match_score}%</div>
+                            <div><span class="tiny-label">ats</span> ${job.ats_score}%</div>
+                        </div>
+                    </div>
+
+                    <div class="result-grid">
+                        <div class="mini-block">
+                            <h4>Missing Skills</h4>
+                            <div>${job.missing_skills.length ? job.missing_skills.join(", ") : "No major skill gaps detected."}</div>
+                        </div>
+
+                        <div class="mini-block">
+                            <h4>Learning Roadmap</h4>
+                            <div>${roadmapHTML}</div>
+                        </div>
+
+                        <div class="mini-block">
+                            <h4>Resume Tips</h4>
+                            <div>${tipsHTML}</div>
+                        </div>
+                    </div>
+
+                    <div class="redline blueprint-note">
+                        markup: reinforce weak skill zones before resubmitting to target role pipeline.
+                    </div>
+                </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+
+            if(resultChartInstance) resultChartInstance.destroy();
+            if(skillChartInstance) skillChartInstance.destroy();
+            if(radarChartInstance) radarChartInstance.destroy();
+
+            const resultCtx = document.getElementById("resultChart");
+            resultChartInstance = new Chart(resultCtx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Role Match %",
+                        data: scores,
+                        backgroundColor: "rgba(0,255,255,0.18)",
+                        borderColor: "#00ffff",
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: "#00ffff"
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: "rgba(255,255,255,0.85)" },
+                            grid: { color: "rgba(255,255,255,0.08)" }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { color: "rgba(255,255,255,0.85)" },
+                            grid: { color: "rgba(255,255,255,0.08)" }
+                        }
+                    }
+                }
+            });
+
+            let skillLabels = [];
+            let skillCounts = [];
+
+            for(const skill in data.market_skills){
+                skillLabels.push(skill);
+                skillCounts.push(data.market_skills[skill]);
+            }
+
+            const skillCtx = document.getElementById("skillChart");
+            skillChartInstance = new Chart(skillCtx, {
+                type: "bar",
+                data: {
+                    labels: skillLabels,
+                    datasets: [{
+                        label: "Market Demand",
+                        data: skillCounts,
+                        backgroundColor: "rgba(255,255,255,0.12)",
+                        borderColor: "#ffffff",
+                        borderWidth: 1.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: "#ffffff"
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: "rgba(255,255,255,0.85)" },
+                            grid: { color: "rgba(255,255,255,0.08)" }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: "rgba(255,255,255,0.85)" },
+                            grid: { color: "rgba(255,255,255,0.08)" }
+                        }
+                    }
+                }
+            });
+
+            const bestRoleSkills = data.best_role.job_skills || [];
+            const bestUserSkills = data.best_role.user_skills || [];
+
+            const radarLabels = bestRoleSkills.length > 0
+                ? bestRoleSkills
+                : ["No role skills found"];
+
+            const radarValues = bestRoleSkills.length > 0
+                ? bestRoleSkills.map(skill => bestUserSkills.includes(skill) ? 100 : 0)
+                : [0];
+
+            const radarCtx = document.getElementById("radarChart");
+            radarChartInstance = new Chart(radarCtx, {
+                type: "radar",
+                data: {
+                    labels: radarLabels,
+                    datasets: [{
+                        label: "Best Role Coverage",
+                        data: radarValues,
+                        backgroundColor: "rgba(255,51,51,0.12)",
+                        borderColor: "#ff3333",
+                        pointBackgroundColor: "#00ffff",
+                        borderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: "rgba(255,255,255,0.12)" },
+                            angleLines: { color: "rgba(255,255,255,0.12)" },
+                            pointLabels: { color: "rgba(255,255,255,0.88)" },
+                            ticks: {
+                                stepSize: 20,
+                                color: "#00ffff",
+                                backdropColor: "transparent"
+                            }
+                        }
+                    }
+                }
+            });
+
+            let reportText = "";
+            reportText += "AI SKILL GAP ANALYZER REPORT\n\n";
+            reportText += "BEST CAREER MATCH: " + data.best_role.job_role + " (" + data.best_role.match_score + "%)\n\n";
+            reportText += "CAREER INSIGHT:\n" + data.career_insight + "\n\n";
+            reportText += "TRENDING SKILLS IN MARKET:\n";
+
+            for(const skill in data.market_skills){
+                reportText += "- " + skill + " (" + data.market_skills[skill] + ")\n";
+            }
+
+            reportText += "\nDETAILED ROLE ANALYSIS:\n\n";
+
+            data.all_results.forEach(job => {
+                reportText += "ROLE: " + job.job_role + "\n";
+                reportText += "MATCH SCORE: " + job.match_score + "%\n";
+                reportText += "ATS SCORE: " + job.ats_score + "%\n";
+                reportText += "MISSING SKILLS: " + job.missing_skills.join(", ") + "\n";
+                reportText += "ROADMAP:\n";
+                job.roadmap.forEach(r => {
+                    reportText += "  PHASE " + r.week + " -> " + r.skill + "\n";
+                });
+                reportText += "RESUME TIPS:\n";
+                job.resume_tips.forEach(t => {
+                    reportText += "  - " + t + "\n";
+                });
+                reportText += "\n";
+            });
+
+            latestReportText = reportText;
+        });
+
+        document.getElementById("downloadReport").addEventListener("click", function(){
+            const blob = new Blob([latestReportText], { type: "text/plain" });
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "skill_gap_report.txt";
+            a.click();
+
+            window.URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>

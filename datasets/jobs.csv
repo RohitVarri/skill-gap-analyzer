@@ -1,0 +1,6 @@
+job_title,skills
+Backend Developer,"python,django,rest api,docker,aws"
+Data Scientist,"python,machine learning,pandas,tensorflow"
+Frontend Developer,"react,html,css,javascript,typescript"
+DevOps Engineer,"docker,linux,aws,kubernetes,ci/cd"
+AI Engineer,"python,deep learning,tensorflow,pytorch,docker"
